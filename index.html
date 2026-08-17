@@ -3,138 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English Mastery App</title>
+    <title>English Mastery - Dashboard</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .option-btn { transition: all 0.2s; }
-        .option-btn:hover { transform: translateY(-2px); }
+        .level-card:hover { transform: scale(1.02); }
+        .progress-fill { transition: width 0.4s ease-out; }
     </style>
 </head>
-<body class="bg-slate-50 font-sans">
+<body class="bg-gray-50 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState } = React;
+        const { useState, useEffect } = React;
 
-        // 1. DATA STRUCTURE: The Question Bank
-        const questionBank = [
+        // 1. DATA: Defined by "Levels"
+        const LEVELS = [
             {
-                id: 1,
-                category: "Prepositions",
-                question: "I'll see you ___ Monday morning.",
-                options: [
-                    { text: "in", correct: false, why: "Incorrect. We use 'in' for months or years, but 'on' is required for specific days of the week." },
-                    { text: "at", correct: false, why: "Incorrect. 'At' is used for specific times (e.g., at 5 PM) or holiday periods, not for days." },
-                    { text: "on", correct: true, why: "Correct! We always use 'on' for days of the week and specific dates." }
+                id: "prep_1",
+                title: "Prepositions of Place",
+                description: "Master In, On, and At for locations.",
+                questions: [
+                    {
+                        question: "I'll be waiting ___ the entrance.",
+                        options: [
+                            { text: "at", correct: true, why: "We use 'at' for a specific point or location." },
+                            { text: "in", correct: false, why: "Incorrect. 'In' is for inside a container/room. The entrance is a point." },
+                            { text: "on", correct: false, why: "Incorrect. 'On' is for surfaces. You aren't on top of the entrance." }
+                        ]
+                    },
+                    {
+                        question: "The keys are ___ the table.",
+                        options: [
+                            { text: "on", correct: true, why: "Correct! 'On' is used for physical surfaces like tables." },
+                            { text: "at", correct: false, why: "Incorrect. 'At' is for a location, but 'on' is specific to surfaces." },
+                            { text: "in", correct: false, why: "Incorrect. Unless the keys are inside the wood of the table, use 'on'!" }
+                        ]
+                    }
                 ]
             },
             {
-                id: 2,
-                category: "Future Tense",
-                question: "Watch out! You ___ drop that glass!",
-                options: [
-                    { text: "will", correct: false, why: "Incorrect. 'Will' is for predictions or promises. When you see something happening right now (evidence), we use 'going to'." },
-                    { text: "are going to", correct: true, why: "Correct! 'Going to' is used when there is present evidence of a future event." },
-                    { text: "shall", correct: false, why: "Incorrect. 'Shall' is formal and usually used for offers or suggestions, not for immediate physical warnings." }
-                ]
-            },
-            {
-                id: 3,
-                category: "Past Tense",
-                question: "I ___ to the cinema yesterday.",
-                options: [
-                    { text: "have gone", correct: false, why: "Incorrect. 'Have gone' is Present Perfect. Since we specified a finished time ('yesterday'), we must use Past Simple." },
-                    { text: "went", correct: true, why: "Correct! 'Went' is the Past Simple form, used for actions completed at a specific time in the past." },
-                    { text: "was go", correct: false, why: "Incorrect. This is grammatically impossible. You would say 'was going' for a continuous action, or simply 'went'." }
+                id: "future_1",
+                title: "Future Intentions",
+                description: "Will vs. Going To.",
+                questions: [
+                    {
+                        question: "I've decided! I ___ buy a new car.",
+                        options: [
+                            { text: "am going to", correct: true, why: "Correct! Use 'going to' for plans made before the moment of speaking." },
+                            { text: "will", correct: false, why: "Incorrect. 'Will' is usually for spontaneous decisions made right now." }
+                        ]
+                    }
                 ]
             }
         ];
 
         function App() {
-            const [currentQuestion, setCurrentQuestion] = useState(0);
-            const [selectedOption, setSelectedOption] = useState(null);
-            const [showFeedback, setShowFeedback] = useState(false);
+            const [view, setView] = useState('dashboard'); // 'dashboard', 'quiz', 'results'
+            const [activeLevel, setActiveLevel] = useState(null);
+            const [streak, setStreak] = useState(0);
+            
+            // Quiz State
+            const [currentIdx, setCurrentIdx] = useState(0);
             const [score, setScore] = useState(0);
-            const [quizComplete, setQuizComplete] = useState(false);
+            const [showFeedback, setShowFeedback] = useState(false);
+            const [selectedOpt, setSelectedOpt] = useState(null);
 
-            const handleAnswer = (option) => {
-                if (showFeedback) return;
-                setSelectedOption(option);
-                setShowFeedback(true);
-                if (option.correct) setScore(score + 1);
+            // Load Streak from LocalStorage on mount
+            useEffect(() => {
+                const savedStreak = localStorage.getItem('english_streak');
+                if (savedStreak) setStreak(parseInt(savedStreak));
+            }, []);
+
+            const startQuiz = (level) => {
+                setActiveLevel(level);
+                setCurrentIdx(0);
+                setScore(0);
+                setView('quiz');
             };
 
-            const nextQuestion = () => {
+            const handleAnswer = (opt) => {
+                if (showFeedback) return;
+                setSelectedOpt(opt);
+                setShowFeedback(true);
+                if (opt.correct) setScore(s => s + 1);
+            };
+
+            const nextStep = () => {
                 setShowFeedback(false);
-                setSelectedOption(null);
-                if (currentQuestion + 1 < questionBank.length) {
-                    setCurrentQuestion(currentQuestion + 1);
+                setSelectedOpt(null);
+                if (currentIdx + 1 < activeLevel.questions.length) {
+                    setCurrentIdx(currentIdx + 1);
                 } else {
-                    setQuizComplete(true);
+                    // Quiz Finished
+                    const finalScore = score + (selectedOpt.correct ? 0 : 0); // Score updated in handleAnswer
+                    if (score / activeLevel.questions.length >= 0.7) {
+                        const newStreak = streak + 1;
+                        setStreak(newStreak);
+                        localStorage.setItem('english_streak', newStreak);
+                    }
+                    setView('results');
                 }
             };
 
-            const restart = () => {
-                setCurrentQuestion(0);
-                setScore(0);
-                setQuizComplete(false);
-                setShowFeedback(false);
-            };
-
-            if (quizComplete) {
+            // UI: Dashboard
+            if (view === 'dashboard') {
                 return (
-                    <div class="max-w-md mx-auto mt-20 p-8 bg-white rounded-2xl shadow-xl text-center">
-                        <h1 class="text-3xl font-bold text-slate-800 mb-4">Quiz Finished!</h1>
-                        <p class="text-xl mb-6">Your Score: <span class="font-bold text-blue-600">{score} / {questionBank.length}</span></p>
-                        <button onClick={restart} class="bg-blue-600 text-white px-8 py-3 rounded-full font-bold hover:bg-blue-700 w-full">Try Again</button>
+                    <div className="max-w-xl mx-auto p-6">
+                        <header className="flex justify-between items-center mb-10">
+                            <h1 className="text-3xl font-extrabold text-blue-600">LinguistIQ</h1>
+                            <div className="flex items-center bg-orange-100 px-4 py-2 rounded-full border border-orange-200">
+                                <span className="text-xl mr-2">🔥</span>
+                                <span className="font-bold text-orange-600">{streak} Day Streak</span>
+                            </div>
+                        </header>
+
+                        <h2 className="text-xl font-bold mb-4">Your Curriculum</h2>
+                        <div className="space-y-4">
+                            {LEVELS.map(level => (
+                                <div key={level.id} onClick={() => startQuiz(level)} className="level-card bg-white p-5 rounded-2xl shadow-sm border border-slate-200 cursor-pointer transition-all hover:shadow-md active:scale-95">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h3 className="font-bold text-lg">{level.title}</h3>
+                                            <p className="text-slate-500 text-sm">{level.description}</p>
+                                        </div>
+                                        <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
+                                            ▶
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 );
             }
 
-            const q = questionBank[currentQuestion];
+            // UI: Quiz
+            if (view === 'quiz') {
+                const q = activeLevel.questions[currentIdx];
+                const progress = ((currentIdx) / activeLevel.questions.length) * 100;
 
-            return (
-                <div class="max-w-md mx-auto mt-10 p-6">
-                    <div class="flex justify-between items-center mb-6">
-                        <span class="text-sm font-bold uppercase tracking-widest text-blue-500">{q.category}</span>
-                        <span class="text-sm text-slate-400">Question {currentQuestion + 1}/{questionBank.length}</span>
-                    </div>
-
-                    <h2 class="text-2xl font-semibold text-slate-800 mb-8 leading-tight">
-                        "{q.question}"
-                    </h2>
-
-                    <div class="space-y-4">
-                        {q.options.map((opt, i) => (
-                            <button
-                                key={i}
-                                onClick={() => handleAnswer(opt)}
-                                disabled={showFeedback}
-                                class={`option-btn w-full p-4 rounded-xl border-2 text-left font-medium transition-all ${
-                                    showFeedback 
-                                    ? opt.correct ? 'border-green-500 bg-green-50' : opt === selectedOption ? 'border-red-500 bg-red-50' : 'border-slate-100'
-                                    : 'border-slate-200 hover:border-blue-400 bg-white'
-                                }`}
-                            >
-                                {opt.text}
-                            </button>
-                        ))}
-                    </div>
-
-                    {showFeedback && (
-                        <div class={`mt-8 p-5 rounded-xl animate-in fade-in slide-in-from-bottom-4 duration-300 ${selectedOption.correct ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                            <p class="font-bold mb-1">{selectedOption.correct ? "✅ Great job!" : "❌ Not quite..."}</p>
-                            <p class="text-sm leading-relaxed">{selectedOption.why}</p>
-                            <button onClick={nextQuestion} class="mt-4 w-full bg-slate-800 text-white py-2 rounded-lg font-bold">
-                                {currentQuestion + 1 === questionBank.length ? "See Results" : "Next Question"}
-                            </button>
+                return (
+                    <div className="max-w-xl mx-auto p-6 mt-10">
+                        {/* Progress Bar */}
+                        <div className="w-full h-3 bg-gray-200 rounded-full mb-8 overflow-hidden">
+                            <div className="progress-fill h-full bg-green-500" style={{ width: `${progress}%` }}></div>
                         </div>
-                    )}
-                </div>
-            );
+
+                        <h2 className="text-2xl font-bold mb-10 text-center leading-relaxed">"{q.question}"</h2>
+
+                        <div className="grid gap-3">
+                            {q.options.map((opt, i) => (
+                                <button 
+                                    key={i}
+                                    onClick={() => handleAnswer(opt)}
+                                    className={`p-4 rounded-xl border-2 font-semibold text-left transition-all ${
+                                        showFeedback 
+                                        ? opt.correct ? 'border-green-500 bg-green-50 text-green-700' : opt === selectedOpt ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-100 text-gray-400'
+                                        : 'border-gray-200 hover:border-blue-400 bg-white'
+                                    }`}
+                                    disabled={showFeedback}
+                                >
+                                    {opt.text}
+                                </button>
+                            ))}
+                        </div>
+
+                        {showFeedback && (
+                            <div className={`mt-10 p-6 rounded-2xl ${selectedOpt.correct ? 'bg-green-600' : 'bg-red-600'} text-white shadow-lg`}>
+                                <div className="flex items-start">
+                                    <span className="text-2xl mr-3">{selectedOpt.correct ? '✅' : '❌'}</span>
+                                    <div>
+                                        <p className="font-bold text-lg">{selectedOpt.correct ? 'Excellent!' : 'Not quite right'}</p>
+                                        <p className="opacity-90">{selectedOpt.why}</p>
+                                    </div>
+                                </div>
+                                <button onClick={nextStep} className="mt-4 w-full py-3 bg-white text-slate-900 rounded-xl font-bold hover:bg-gray-100">
+                                    Continue
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+
+            // UI: Results
+            if (view === 'results') {
+                const percent = Math.round((score / activeLevel.questions.length) * 100);
+                return (
+                    <div className="max-w-xl mx-auto p-6 text-center mt-20">
+                        <div className="mb-6 relative inline-block">
+                            <svg className="w-40 h-40 transform -rotate-90">
+                                <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-200" />
+                                <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" 
+                                    strokeDasharray={440} strokeDashoffset={440 - (440 * percent / 100)} 
+                                    className="text-blue-500 transition-all duration-1000 ease-out" />
+                            </svg>
+                            <span className="absolute inset-0 flex items-center justify-center text-3xl font-black">{percent}%</span>
+                        </div>
+                        
+                        <h2 className="text-3xl font-bold mb-2">Lesson Complete!</h2>
+                        <p className="text-slate-500 mb-8">You got {score} out of {activeLevel.questions.length} correct.</p>
+                        
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 mb-8 inline-flex items-center">
+                            <span className="mr-2">🔥</span>
+                            <span className="font-bold text-orange-600">Streak updated to {streak}!</span>
+                        </div>
+
+                        <button onClick={() => setView('dashboard')} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-blue-200 shadow-xl hover:bg-blue-700">
+                            Back to Dashboard
+                        </button>
+                    </div>
+                );
+            }
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
