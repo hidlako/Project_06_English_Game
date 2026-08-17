@@ -3,217 +3,321 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English Mastery - Dashboard</title>
+    <title>FluencyIQ - Ultimate Edition (Fixed)</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .level-card:hover { transform: scale(1.02); }
-        .progress-fill { transition: width 0.4s ease-out; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .locked { filter: grayscale(1); opacity: 0.5; cursor: not-allowed !important; }
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: scale(0.9); } 100% { transform: scale(1); } }
+        .progress-transition { transition: width 0.5s ease-in-out; }
     </style>
 </head>
-<body class="bg-gray-50 text-slate-900">
+<body class="bg-slate-50 text-slate-900">
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // 1. DATA: Defined by "Levels"
-        const LEVELS = [
+        const PASSING_SCORE = 0.8;
+
+        const CONTENT_MODULES = [
             {
-                id: "prep_1",
-                title: "Prepositions of Place",
-                description: "Master In, On, and At for locations.",
+                id: "prep_time",
+                title: "1. Prepositions of Time",
+                description: "Master 'In, On, At' for dates and times.",
+                guide: {
+                    intro: "Prepositions of time tell us when something happens.",
+                    rules: [
+                        { title: "AT", content: "Used for precise times (9:00 AM, noon) and holiday periods." },
+                        { title: "ON", content: "Used for days (on Monday) and specific dates (on May 5th)." },
+                        { title: "IN", content: "Used for months, years, decades, and long periods." }
+                    ]
+                },
                 questions: [
-                    {
-                        question: "I'll be waiting ___ the entrance.",
-                        options: [
-                            { text: "at", correct: true, why: "We use 'at' for a specific point or location." },
-                            { text: "in", correct: false, why: "Incorrect. 'In' is for inside a container/room. The entrance is a point." },
-                            { text: "on", correct: false, why: "Incorrect. 'On' is for surfaces. You aren't on top of the entrance." }
-                        ]
-                    },
-                    {
-                        question: "The keys are ___ the table.",
-                        options: [
-                            { text: "on", correct: true, why: "Correct! 'On' is used for physical surfaces like tables." },
-                            { text: "at", correct: false, why: "Incorrect. 'At' is for a location, but 'on' is specific to surfaces." },
-                            { text: "in", correct: false, why: "Incorrect. Unless the keys are inside the wood of the table, use 'on'!" }
-                        ]
-                    }
+                    { question: "The meeting starts ___ 9:00 AM.", options: [{ text: "at", correct: true, why: "We use 'at' for specific clock times." }, { text: "on", correct: false, why: "'On' is for days, not hours." }, { text: "in", correct: false, why: "'In' is for long periods." }] },
+                    { question: "I was born ___ 1995.", options: [{ text: "in", correct: true, why: "Use 'in' for years and months." }, { text: "on", correct: false, why: "'On' is for specific days, not just the year." }] }
                 ]
             },
             {
-                id: "future_1",
-                title: "Future Intentions",
-                description: "Will vs. Going To.",
+                id: "future_forms",
+                title: "2. Future Predictions",
+                description: "Will vs. Going to.",
+                guide: {
+                    intro: "Choosing between 'Will' and 'Going to' depends on evidence.",
+                    rules: [
+                        { title: "GOING TO", content: "Used for plans made before speaking, or present evidence." },
+                        { title: "WILL", content: "Used for spontaneous decisions or general opinions." }
+                    ]
+                },
                 questions: [
-                    {
-                        question: "I've decided! I ___ buy a new car.",
-                        options: [
-                            { text: "am going to", correct: true, why: "Correct! Use 'going to' for plans made before the moment of speaking." },
-                            { text: "will", correct: false, why: "Incorrect. 'Will' is usually for spontaneous decisions made right now." }
-                        ]
-                    }
+                    { question: "Look! That car ___ hit the wall!", options: [{ text: "is going to", correct: true, why: "Use 'going to' when there is physical evidence happening now." }, { text: "will", correct: false, why: "'Will' is for general predictions." }] }
+                ]
+            },
+            {
+                id: "articles",
+                title: "3. Articles: A, An, The",
+                description: "Mastering definite and indefinite articles.",
+                guide: {
+                    intro: "Articles define nouns as specific or unspecific.",
+                    rules: [
+                        { title: "AN", content: "Use before vowel sounds (An apple, An honest man)." },
+                        { title: "A", content: "Use before consonant sounds (A car)." }
+                    ]
+                },
+                questions: [
+                    { question: "He is ___ honest man.", options: [{ text: "an", correct: true, why: "'Honest' starts with a vowel sound (O), so we use 'an'." }, { text: "a", correct: false, why: "Even though it starts with 'H', the sound is a vowel." }] }
+                ]
+            },
+            {
+                id: "subjunctive",
+                title: "4. The Subjunctive Mood",
+                description: "Formal demands and suggestions.",
+                guide: {
+                    intro: "Used after verbs of demand like 'insist' or 'suggest'.",
+                    rules: [
+                        { title: "THE BASE FORM", content: "Use the base verb (no -s, no -ed) after 'that' in this structure." }
+                    ]
+                },
+                questions: [
+                    { question: "The boss insists that she ___ the report now.", options: [{ text: "finish", correct: true, why: "In the subjunctive, we use the base form 'finish', not 'finishes'." }, { text: "finishes", correct: false, why: "Incorrect. The subjunctive mood ignores the third-person 's'." }] }
                 ]
             }
         ];
 
         function App() {
-            const [view, setView] = useState('dashboard'); // 'dashboard', 'quiz', 'results'
+            const [view, setView] = useState('dashboard'); 
+            const [unlockedLevels, setUnlockedLevels] = useState(['prep_time']);
             const [activeLevel, setActiveLevel] = useState(null);
             const [streak, setStreak] = useState(0);
-            
-            // Quiz State
             const [currentIdx, setCurrentIdx] = useState(0);
             const [score, setScore] = useState(0);
             const [showFeedback, setShowFeedback] = useState(false);
             const [selectedOpt, setSelectedOpt] = useState(null);
+            const [wrongAnswers, setWrongAnswers] = useState([]);
+            const [reviewIdx, setReviewIdx] = useState(0);
 
-            // Load Streak from LocalStorage on mount
             useEffect(() => {
-                const savedStreak = localStorage.getItem('english_streak');
+                const savedLevels = localStorage.getItem('fluency_unlocked');
+                const savedStreak = localStorage.getItem('fluency_streak');
+                if (savedLevels) setUnlockedLevels(JSON.parse(savedLevels));
                 if (savedStreak) setStreak(parseInt(savedStreak));
             }, []);
 
-            const startQuiz = (level) => {
-                setActiveLevel(level);
-                setCurrentIdx(0);
-                setScore(0);
-                setView('quiz');
+            // FIXED: Randomizer logic now properly generates the guide structure
+            const generateRandomLevel = () => {
+                const allQuestions = CONTENT_MODULES.flatMap(m => m.questions);
+                const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+                
+                return {
+                    id: "random_mode",
+                    title: "Random Challenge",
+                    description: "Mixed questions from all categories.",
+                    isRandom: true,
+                    guide: {
+                        intro: "Welcome to the Random Challenge! This mode tests your knowledge across all previously learned topics.",
+                        rules: [
+                            { title: "MIXED TOPICS", content: "You will see questions about Prepositions, Tenses, Articles, and more in a random order." },
+                            { title: "NO STUDY GUIDE", content: "Since this is a mix, there is no specific guide. Use your instincts!" }
+                        ]
+                    },
+                    questions: shuffled.slice(0, 10) 
+                };
+            };
+
+            const openLevel = (levelId) => {
+                // FIXED: Random mode bypasses the "unlocked" check so it's always accessible
+                if (levelId === 'random_mode') {
+                    const randomData = generateRandomLevel();
+                    setActiveLevel(randomData);
+                    setView('guide');
+                    return;
+                }
+
+                if (!unlockedLevels.includes(levelId)) return;
+                
+                const levelData = CONTENT_MODULES.find(m => m.id === levelId);
+                setActiveLevel(levelData);
+                setView('guide');
             };
 
             const handleAnswer = (opt) => {
                 if (showFeedback) return;
                 setSelectedOpt(opt);
                 setShowFeedback(true);
-                if (opt.correct) setScore(s => s + 1);
-            };
-
-            const nextStep = () => {
-                setShowFeedback(false);
-                setSelectedOpt(null);
-                if (currentIdx + 1 < activeLevel.questions.length) {
-                    setCurrentIdx(currentIdx + 1);
+                if (opt.correct) {
+                    setScore(s => s + 1);
                 } else {
-                    // Quiz Finished
-                    const finalScore = score + (selectedOpt.correct ? 0 : 0); // Score updated in handleAnswer
-                    if (score / activeLevel.questions.length >= 0.7) {
-                        const newStreak = streak + 1;
-                        setStreak(newStreak);
-                        localStorage.setItem('english_streak', newStreak);
-                    }
-                    setView('results');
+                    setWrongAnswers(prev => [...prev, {
+                        questionText: activeLevel.questions[currentIdx].question,
+                        userChoice: opt,
+                        correctChoice: activeLevel.questions[currentIdx].options.find(o => o.correct)
+                    }]);
                 }
             };
 
-            // UI: Dashboard
-            if (view === 'dashboard') {
-                return (
-                    <div className="max-w-xl mx-auto p-6">
-                        <header className="flex justify-between items-center mb-10">
-                            <h1 className="text-3xl font-extrabold text-blue-600">LinguistIQ</h1>
-                            <div className="flex items-center bg-orange-100 px-4 py-2 rounded-full border border-orange-200">
-                                <span className="text-xl mr-2">🔥</span>
-                                <span className="font-bold text-orange-600">{streak} Day Streak</span>
-                            </div>
-                        </header>
+            const finishQuiz = () => {
+                const percent = score / activeLevel.questions.length;
+                
+                // Only unlock next levels if NOT in random mode
+                if (!activeLevel.isRandom && percent >= PASSING_SCORE) {
+                    const idx = CONTENT_MODULES.findIndex(l => l.id === activeLevel.id);
+                    if (idx < CONTENT_MODULES.length - 1) {
+                        const nextId = CONTENT_MODULES[idx+1].id;
+                        if (!unlockedLevels.includes(nextId)) {
+                            const newUnlocked = [...unlockedLevels, nextId];
+                            setUnlockedLevels(newUnlocked);
+                            localStorage.setItem('fluency_unlocked', JSON.stringify(newUnlocked));
+                        }
+                    }
+                    const newStreak = streak + 1;
+                    setStreak(newStreak);
+                    localStorage.setItem('fluency_streak', newStreak);
+                }
+                setView('results');
+            };
 
-                        <h2 className="text-xl font-bold mb-4">Your Curriculum</h2>
-                        <div className="space-y-4">
-                            {LEVELS.map(level => (
-                                <div key={level.id} onClick={() => startQuiz(level)} className="level-card bg-white p-5 rounded-2xl shadow-sm border border-slate-200 cursor-pointer transition-all hover:shadow-md active:scale-95">
+            // DASHBOARD VIEW
+            if (view === 'dashboard') return (
+                <div className="max-w-xl mx-auto p-6 pb-20">
+                    <header className="flex justify-between items-center mb-10">
+                        <h1 className="text-3xl font-black text-indigo-600 tracking-tighter italic">FluencyIQ</h1>
+                        <div className="bg-orange-500 text-white px-5 py-1.5 rounded-full font-bold shadow-lg flex items-center">
+                            <span className="mr-2">🔥</span> {streak}
+                        </div>
+                    </header>
+                    
+                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Curriculum</h2>
+                    <div className="space-y-4 mb-10">
+                        {CONTENT_MODULES.map(level => {
+                            const isLocked = !unlockedLevels.includes(level.id);
+                            return (
+                                <div key={level.id} onClick={() => openLevel(level.id)} 
+                                    className={`p-6 rounded-3xl border-2 transition-all active:scale-95 ${isLocked ? 'locked border-slate-200 bg-slate-100' : 'bg-white border-white shadow-sm hover:border-indigo-400 cursor-pointer'}`}>
                                     <div className="flex justify-between items-center">
                                         <div>
-                                            <h3 className="font-bold text-lg">{level.title}</h3>
+                                            <h3 className="font-bold text-lg text-slate-800">{level.title}</h3>
                                             <p className="text-slate-500 text-sm">{level.description}</p>
                                         </div>
-                                        <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500">
-                                            ▶
-                                        </div>
+                                        <div className="text-2xl">{isLocked ? '🔒' : '📖'}</div>
                                     </div>
                                 </div>
-                            ))}
+                            );
+                        })}
+                    </div>
+
+                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Practice Mode</h2>
+                    <div onClick={() => openLevel('random_mode')} 
+                        className="p-6 rounded-3xl border-2 bg-gradient-to-br from-indigo-600 to-purple-700 border-transparent text-white shadow-xl cursor-pointer hover:shadow-indigo-200 transition-all active:scale-95">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h3 className="font-black text-xl tracking-tight">∞ Random Challenge</h3>
+                                <p className="opacity-80 text-sm">Shuffle all categories into one test.</p>
+                            </div>
+                            <div className="text-3xl">🎲</div>
                         </div>
                     </div>
-                );
-            }
+                </div>
+            );
 
-            // UI: Quiz
+            // GUIDE VIEW
+            if (view === 'guide') return (
+                <div className="max-w-xl mx-auto p-6 min-h-screen bg-white">
+                    <button onClick={() => setView('dashboard')} className="mb-8 text-indigo-600 font-bold flex items-center">← Home</button>
+                    <h1 className="text-3xl font-black mb-4">{activeLevel.title}</h1>
+                    <p className="text-slate-600 text-lg mb-8 leading-relaxed">{activeLevel.guide.intro}</p>
+                    <div className="space-y-4 mb-10">
+                        {activeLevel.guide.rules.map((rule, i) => (
+                            <div key={i} className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                                <h4 className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-2">{rule.title}</h4>
+                                <p className="text-slate-800 font-semibold">{rule.content}</p>
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={() => {setScore(0); setCurrentIdx(0); setWrongAnswers([]); setView('quiz');}} 
+                        className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl shadow-xl hover:bg-indigo-700 transition-all">
+                        Start Quiz
+                    </button>
+                </div>
+            );
+
+            // QUIZ VIEW
             if (view === 'quiz') {
                 const q = activeLevel.questions[currentIdx];
-                const progress = ((currentIdx) / activeLevel.questions.length) * 100;
-
                 return (
-                    <div className="max-w-xl mx-auto p-6 mt-10">
-                        {/* Progress Bar */}
-                        <div className="w-full h-3 bg-gray-200 rounded-full mb-8 overflow-hidden">
-                            <div className="progress-fill h-full bg-green-500" style={{ width: `${progress}%` }}></div>
+                    <div className="max-w-xl mx-auto p-6 mt-6">
+                        <div className="flex items-center gap-4 mb-12">
+                            <button onClick={() => setView('dashboard')} className="text-slate-300 hover:text-slate-500 font-bold text-xl">✕</button>
+                            <div className="flex-1 h-3 bg-slate-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-indigo-500 progress-transition" style={{ width: `${(currentIdx / activeLevel.questions.length) * 100}%` }}></div>
+                            </div>
                         </div>
-
                         <h2 className="text-2xl font-bold mb-10 text-center leading-relaxed">"{q.question}"</h2>
-
                         <div className="grid gap-3">
                             {q.options.map((opt, i) => (
-                                <button 
-                                    key={i}
-                                    onClick={() => handleAnswer(opt)}
-                                    className={`p-4 rounded-xl border-2 font-semibold text-left transition-all ${
-                                        showFeedback 
-                                        ? opt.correct ? 'border-green-500 bg-green-50 text-green-700' : opt === selectedOpt ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-100 text-gray-400'
-                                        : 'border-gray-200 hover:border-blue-400 bg-white'
-                                    }`}
-                                    disabled={showFeedback}
-                                >
+                                <button key={i} onClick={() => handleAnswer(opt)} disabled={showFeedback}
+                                    className={`p-5 rounded-2xl border-2 font-bold text-left transition-all ${showFeedback ? (opt.correct ? 'border-green-500 bg-green-50 text-green-700' : opt === selectedOpt ? 'border-red-500 bg-red-50 text-red-700' : 'opacity-30 border-slate-100') : 'border-slate-200 bg-white hover:border-indigo-300'}`}>
                                     {opt.text}
                                 </button>
                             ))}
                         </div>
-
                         {showFeedback && (
-                            <div className={`mt-10 p-6 rounded-2xl ${selectedOpt.correct ? 'bg-green-600' : 'bg-red-600'} text-white shadow-lg`}>
-                                <div className="flex items-start">
-                                    <span className="text-2xl mr-3">{selectedOpt.correct ? '✅' : '❌'}</span>
-                                    <div>
-                                        <p className="font-bold text-lg">{selectedOpt.correct ? 'Excellent!' : 'Not quite right'}</p>
-                                        <p className="opacity-90">{selectedOpt.why}</p>
-                                    </div>
-                                </div>
-                                <button onClick={nextStep} className="mt-4 w-full py-3 bg-white text-slate-900 rounded-xl font-bold hover:bg-gray-100">
-                                    Continue
-                                </button>
+                            <div className={`mt-8 p-6 rounded-3xl animate-pop shadow-2xl ${selectedOpt.correct ? 'bg-green-600' : 'bg-red-600'} text-white`}>
+                                <h3 className="font-black text-xl mb-2">{selectedOpt.correct ? 'Correct!' : 'Incorrect'}</h3>
+                                <p className="text-sm opacity-90 leading-relaxed mb-6">{selectedOpt.why}</p>
+                                <button onClick={() => currentIdx + 1 < activeLevel.questions.length ? (setCurrentIdx(currentIdx + 1) || setShowFeedback(false) || setSelectedOpt(null)) : finishQuiz()}
+                                    className="w-full py-4 bg-white text-slate-900 rounded-xl font-black uppercase tracking-wider">Continue</button>
                             </div>
                         )}
                     </div>
                 );
             }
 
-            // UI: Results
+            // RESULTS VIEW
             if (view === 'results') {
-                const percent = Math.round((score / activeLevel.questions.length) * 100);
+                const passed = (score / activeLevel.questions.length) >= PASSING_SCORE;
                 return (
-                    <div className="max-w-xl mx-auto p-6 text-center mt-20">
-                        <div className="mb-6 relative inline-block">
-                            <svg className="w-40 h-40 transform -rotate-90">
-                                <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-200" />
-                                <circle cx="80" cy="80" r="70" stroke="currentColor" strokeWidth="12" fill="transparent" 
-                                    strokeDasharray={440} strokeDashoffset={440 - (440 * percent / 100)} 
-                                    className="text-blue-500 transition-all duration-1000 ease-out" />
-                            </svg>
-                            <span className="absolute inset-0 flex items-center justify-center text-3xl font-black">{percent}%</span>
+                    <div className="max-w-xl mx-auto p-10 text-center mt-10 bg-white rounded-[40px] shadow-2xl">
+                        <div className="text-7xl mb-6">{passed ? '🏆' : '🕯️'}</div>
+                        <h2 className="text-5xl font-black mb-2">{Math.round((score/activeLevel.questions.length)*100)}%</h2>
+                        <p className="text-slate-500 font-medium mb-10">
+                            {activeLevel.isRandom ? "Random Mode Complete!" : passed ? "Success! Next Level Unlocked." : "Study the guide and try again!"}
+                        </p>
+                        <div className="space-y-3">
+                            {wrongAnswers.length > 0 && <button onClick={() => {setReviewIdx(0); setView('review');}} className="w-full py-5 bg-orange-100 text-orange-700 rounded-2xl font-black">Review Mistakes</button>}
+                            <button onClick={() => setView('dashboard')} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-200">Back to Dashboard</button>
                         </div>
-                        
-                        <h2 className="text-3xl font-bold mb-2">Lesson Complete!</h2>
-                        <p className="text-slate-500 mb-8">You got {score} out of {activeLevel.questions.length} correct.</p>
-                        
-                        <div className="bg-white p-4 rounded-xl border border-gray-200 mb-8 inline-flex items-center">
-                            <span className="mr-2">🔥</span>
-                            <span className="font-bold text-orange-600">Streak updated to {streak}!</span>
-                        </div>
+                    </div>
+                );
+            }
 
-                        <button onClick={() => setView('dashboard')} className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold text-lg shadow-blue-200 shadow-xl hover:bg-blue-700">
-                            Back to Dashboard
+            // REVIEW VIEW
+            if (view === 'review') {
+                const error = wrongAnswers[reviewIdx];
+                return (
+                    <div className="max-w-xl mx-auto p-6 mt-10">
+                        <header className="flex justify-between items-center mb-10">
+                            <button onClick={() => setView('results')} className="font-bold text-slate-400">← Back</button>
+                            <span className="font-black text-slate-300 tracking-widest uppercase text-xs">Mistake {reviewIdx + 1}/{wrongAnswers.length}</span>
+                        </header>
+                        <h3 className="text-2xl font-bold mb-10 italic text-center">"{error.questionText}"</h3>
+                        <div className="space-y-4">
+                            <div className="p-6 rounded-3xl bg-red-50 border-2 border-red-100">
+                                <h4 className="text-xs font-black text-red-400 uppercase mb-2">You chose: {error.userChoice.text}</h4>
+                                <p className="text-red-800 font-medium leading-relaxed">{error.userChoice.why}</p>
+                            </div>
+                            <div className="p-6 rounded-3xl bg-green-50 border-2 border-green-100">
+                                <h4 className="text-xs font-black text-green-400 uppercase mb-2">Correct: {error.correctChoice.text}</h4>
+                                <p className="text-green-800 font-medium leading-relaxed">{error.correctChoice.why}</p>
+                            </div>
+                        </div>
+                        <button onClick={() => reviewIdx + 1 < wrongAnswers.length ? setReviewIdx(reviewIdx + 1) : setView('results')} 
+                            className="mt-12 w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg">
+                            {reviewIdx + 1 < wrongAnswers.length ? "Next Mistake" : "Finish Review"}
                         </button>
                     </div>
                 );
