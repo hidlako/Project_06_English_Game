@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="content.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -24,75 +25,13 @@
         const { useState, useEffect } = React;
 
         const PASSING_SCORE = 0.8;
-
-        const CONTENT_MODULES = [
-            {
-                id: "prep_time",
-                title: "1. Prepositions of Time",
-                description: "Master 'In, On, At' for dates and times.",
-                guide: {
-                    intro: "Prepositions of time tell us when something happens.",
-                    rules: [
-                        { title: "AT", content: "Used for precise times (9:00 AM, noon) and holiday periods." },
-                        { title: "ON", content: "Used for days (on Monday) and specific dates (on May 5th)." },
-                        { title: "IN", content: "Used for months, years, decades, and long periods." }
-                    ]
-                },
-                questions: [
-                    { question: "The meeting starts ___ 9:00 AM.", options: [{ text: "at", correct: true, why: "We use 'at' for specific clock times." }, { text: "on", correct: false, why: "'On' is for days, not hours." }, { text: "in", correct: false, why: "'In' is for long periods." }] },
-                    { question: "I was born ___ 1995.", options: [{ text: "in", correct: true, why: "Use 'in' for years and months." }, { text: "on", correct: false, why: "'On' is for specific days, not just the year." }] }
-                ]
-            },
-            {
-                id: "future_forms",
-                title: "2. Future Predictions",
-                description: "Will vs. Going to.",
-                guide: {
-                    intro: "Choosing between 'Will' and 'Going to' depends on evidence.",
-                    rules: [
-                        { title: "GOING TO", content: "Used for plans made before speaking, or present evidence." },
-                        { title: "WILL", content: "Used for spontaneous decisions or general opinions." }
-                    ]
-                },
-                questions: [
-                    { question: "Look! That car ___ hit the wall!", options: [{ text: "is going to", correct: true, why: "Use 'going to' when there is physical evidence happening now." }, { text: "will", correct: false, why: "'Will' is for general predictions." }] }
-                ]
-            },
-            {
-                id: "articles",
-                title: "3. Articles: A, An, The",
-                description: "Mastering definite and indefinite articles.",
-                guide: {
-                    intro: "Articles define nouns as specific or unspecific.",
-                    rules: [
-                        { title: "AN", content: "Use before vowel sounds (An apple, An honest man)." },
-                        { title: "A", content: "Use before consonant sounds (A car)." }
-                    ]
-                },
-                questions: [
-                    { question: "He is ___ honest man.", options: [{ text: "an", correct: true, why: "'Honest' starts with a vowel sound (O), so we use 'an'." }, { text: "a", correct: false, why: "Even though it starts with 'H', the sound is a vowel." }] }
-                ]
-            },
-            {
-                id: "subjunctive",
-                title: "4. The Subjunctive Mood",
-                description: "Formal demands and suggestions.",
-                guide: {
-                    intro: "Used after verbs of demand like 'insist' or 'suggest'.",
-                    rules: [
-                        { title: "THE BASE FORM", content: "Use the base verb (no -s, no -ed) after 'that' in this structure." }
-                    ]
-                },
-                questions: [
-                    { question: "The boss insists that she ___ the report now.", options: [{ text: "finish", correct: true, why: "In the subjunctive, we use the base form 'finish', not 'finishes'." }, { text: "finishes", correct: false, why: "Incorrect. The subjunctive mood ignores the third-person 's'." }] }
-                ]
-            }
-        ];
+        const ROUND_SIZE = 10; // Max questions served per playthrough, sampled fresh each time from the level's pool
 
         function App() {
             const [view, setView] = useState('dashboard'); 
             const [unlockedLevels, setUnlockedLevels] = useState(['prep_time']);
             const [activeLevel, setActiveLevel] = useState(null);
+            const [sessionQuestions, setSessionQuestions] = useState([]); // The (shuffled, capped) question set for THIS playthrough
             const [streak, setStreak] = useState(0);
             const [currentIdx, setCurrentIdx] = useState(0);
             const [score, setScore] = useState(0);
@@ -108,11 +47,15 @@
                 if (savedStreak) setStreak(parseInt(savedStreak));
             }, []);
 
-            // FIXED: Randomizer logic now properly generates the guide structure
+            // Samples up to ROUND_SIZE questions from a pool, freshly shuffled each call —
+            // this is what makes replaying the same level feel different each time.
+            const pickRoundQuestions = (pool) => {
+                const shuffled = [...pool].sort(() => Math.random() - 0.5);
+                return shuffled.slice(0, Math.min(ROUND_SIZE, shuffled.length));
+            };
+
             const generateRandomLevel = () => {
                 const allQuestions = CONTENT_MODULES.flatMap(m => m.questions);
-                const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-                
                 return {
                     id: "random_mode",
                     title: "Random Challenge",
@@ -125,23 +68,25 @@
                             { title: "NO STUDY GUIDE", content: "Since this is a mix, there is no specific guide. Use your instincts!" }
                         ]
                     },
-                    questions: shuffled.slice(0, 10) 
+                    questions: pickRoundQuestions(allQuestions)
                 };
             };
 
             const openLevel = (levelId) => {
-                // FIXED: Random mode bypasses the "unlocked" check so it's always accessible
+                // Random mode bypasses the "unlocked" check so it's always accessible
                 if (levelId === 'random_mode') {
                     const randomData = generateRandomLevel();
                     setActiveLevel(randomData);
+                    setSessionQuestions(randomData.questions);
                     setView('guide');
                     return;
                 }
 
                 if (!unlockedLevels.includes(levelId)) return;
-                
+
                 const levelData = CONTENT_MODULES.find(m => m.id === levelId);
                 setActiveLevel(levelData);
+                setSessionQuestions(pickRoundQuestions(levelData.questions));
                 setView('guide');
             };
 
@@ -153,15 +98,15 @@
                     setScore(s => s + 1);
                 } else {
                     setWrongAnswers(prev => [...prev, {
-                        questionText: activeLevel.questions[currentIdx].question,
+                        questionText: sessionQuestions[currentIdx].question,
                         userChoice: opt,
-                        correctChoice: activeLevel.questions[currentIdx].options.find(o => o.correct)
+                        correctChoice: sessionQuestions[currentIdx].options.find(o => o.correct)
                     }]);
                 }
             };
 
             const finishQuiz = () => {
-                const percent = score / activeLevel.questions.length;
+                const percent = score / sessionQuestions.length;
                 
                 // Only unlock next levels if NOT in random mode
                 if (!activeLevel.isRandom && percent >= PASSING_SCORE) {
@@ -247,15 +192,18 @@
 
             // QUIZ VIEW
             if (view === 'quiz') {
-                const q = activeLevel.questions[currentIdx];
+                const q = sessionQuestions[currentIdx];
                 return (
                     <div className="max-w-xl mx-auto p-6 mt-6">
-                        <div className="flex items-center gap-4 mb-12">
+                        <div className="flex items-center gap-4 mb-3">
                             <button onClick={() => setView('dashboard')} className="text-slate-300 hover:text-slate-500 font-bold text-xl">✕</button>
                             <div className="flex-1 h-3 bg-slate-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-indigo-500 progress-transition" style={{ width: `${(currentIdx / activeLevel.questions.length) * 100}%` }}></div>
+                                <div className="h-full bg-indigo-500 progress-transition" style={{ width: `${(currentIdx / sessionQuestions.length) * 100}%` }}></div>
                             </div>
                         </div>
+                        <p className="text-center text-slate-400 font-bold text-sm tracking-widest uppercase mb-9">
+                            Question {currentIdx + 1} / {sessionQuestions.length}
+                        </p>
                         <h2 className="text-2xl font-bold mb-10 text-center leading-relaxed">"{q.question}"</h2>
                         <div className="grid gap-3">
                             {q.options.map((opt, i) => (
@@ -269,7 +217,7 @@
                             <div className={`mt-8 p-6 rounded-3xl animate-pop shadow-2xl ${selectedOpt.correct ? 'bg-green-600' : 'bg-red-600'} text-white`}>
                                 <h3 className="font-black text-xl mb-2">{selectedOpt.correct ? 'Correct!' : 'Incorrect'}</h3>
                                 <p className="text-sm opacity-90 leading-relaxed mb-6">{selectedOpt.why}</p>
-                                <button onClick={() => currentIdx + 1 < activeLevel.questions.length ? (setCurrentIdx(currentIdx + 1) || setShowFeedback(false) || setSelectedOpt(null)) : finishQuiz()}
+                                <button onClick={() => currentIdx + 1 < sessionQuestions.length ? (setCurrentIdx(currentIdx + 1) || setShowFeedback(false) || setSelectedOpt(null)) : finishQuiz()}
                                     className="w-full py-4 bg-white text-slate-900 rounded-xl font-black uppercase tracking-wider">Continue</button>
                             </div>
                         )}
@@ -279,11 +227,11 @@
 
             // RESULTS VIEW
             if (view === 'results') {
-                const passed = (score / activeLevel.questions.length) >= PASSING_SCORE;
+                const passed = (score / sessionQuestions.length) >= PASSING_SCORE;
                 return (
                     <div className="max-w-xl mx-auto p-10 text-center mt-10 bg-white rounded-[40px] shadow-2xl">
                         <div className="text-7xl mb-6">{passed ? '🏆' : '🕯️'}</div>
-                        <h2 className="text-5xl font-black mb-2">{Math.round((score/activeLevel.questions.length)*100)}%</h2>
+                        <h2 className="text-5xl font-black mb-2">{Math.round((score/sessionQuestions.length)*100)}%</h2>
                         <p className="text-slate-500 font-medium mb-10">
                             {activeLevel.isRandom ? "Random Mode Complete!" : passed ? "Success! Next Level Unlocked." : "Study the guide and try again!"}
                         </p>
