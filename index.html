@@ -12,7 +12,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         body { font-family: 'Inter', sans-serif; }
-        .locked { filter: grayscale(1); opacity: 0.5; cursor: not-allowed !important; }
         .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes pop { 0% { transform: scale(0.9); } 100% { transform: scale(1); } }
         .progress-transition { transition: width 0.5s ease-in-out; }
@@ -29,7 +28,7 @@
 
         function App() {
             const [view, setView] = useState('dashboard'); 
-            const [unlockedLevels, setUnlockedLevels] = useState(['prep_time']);
+            const [levelStars, setLevelStars] = useState({}); // { levelId: 0-3 }, reflects LAST attempt's performance
             const [activeLevel, setActiveLevel] = useState(null);
             const [sessionQuestions, setSessionQuestions] = useState([]); // The (shuffled, capped) question set for THIS playthrough
             const [streak, setStreak] = useState(0);
@@ -41,11 +40,19 @@
             const [reviewIdx, setReviewIdx] = useState(0);
 
             useEffect(() => {
-                const savedLevels = localStorage.getItem('fluency_unlocked');
+                const savedStars = localStorage.getItem('fluency_stars');
                 const savedStreak = localStorage.getItem('fluency_streak');
-                if (savedLevels) setUnlockedLevels(JSON.parse(savedLevels));
+                if (savedStars) setLevelStars(JSON.parse(savedStars));
                 if (savedStreak) setStreak(parseInt(savedStreak));
             }, []);
+
+            // 3-star rating from a 0-1 score, based on the most recent attempt only
+            const starsForPercent = (percent) => {
+                if (percent >= PASSING_SCORE) return 3;
+                if (percent >= 0.5) return 2;
+                if (percent > 0) return 1;
+                return 0;
+            };
 
             // Samples up to ROUND_SIZE questions from a pool, freshly shuffled each call —
             // this is what makes replaying the same level feel different each time.
@@ -73,7 +80,6 @@
             };
 
             const openLevel = (levelId) => {
-                // Random mode bypasses the "unlocked" check so it's always accessible
                 if (levelId === 'random_mode') {
                     const randomData = generateRandomLevel();
                     setActiveLevel(randomData);
@@ -81,8 +87,6 @@
                     setView('guide');
                     return;
                 }
-
-                if (!unlockedLevels.includes(levelId)) return;
 
                 const levelData = CONTENT_MODULES.find(m => m.id === levelId);
                 setActiveLevel(levelData);
@@ -107,21 +111,17 @@
 
             const finishQuiz = () => {
                 const percent = score / sessionQuestions.length;
-                
-                // Only unlock next levels if NOT in random mode
-                if (!activeLevel.isRandom && percent >= PASSING_SCORE) {
-                    const idx = CONTENT_MODULES.findIndex(l => l.id === activeLevel.id);
-                    if (idx < CONTENT_MODULES.length - 1) {
-                        const nextId = CONTENT_MODULES[idx+1].id;
-                        if (!unlockedLevels.includes(nextId)) {
-                            const newUnlocked = [...unlockedLevels, nextId];
-                            setUnlockedLevels(newUnlocked);
-                            localStorage.setItem('fluency_unlocked', JSON.stringify(newUnlocked));
-                        }
+
+                if (!activeLevel.isRandom) {
+                    const newStars = { ...levelStars, [activeLevel.id]: starsForPercent(percent) };
+                    setLevelStars(newStars);
+                    localStorage.setItem('fluency_stars', JSON.stringify(newStars));
+
+                    if (percent >= PASSING_SCORE) {
+                        const newStreak = streak + 1;
+                        setStreak(newStreak);
+                        localStorage.setItem('fluency_streak', newStreak);
                     }
-                    const newStreak = streak + 1;
-                    setStreak(newStreak);
-                    localStorage.setItem('fluency_streak', newStreak);
                 }
                 setView('results');
             };
@@ -135,29 +135,10 @@
                             <span className="mr-2">🔥</span> {streak}
                         </div>
                     </header>
-                    
-                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Curriculum</h2>
-                    <div className="space-y-4 mb-10">
-                        {CONTENT_MODULES.map(level => {
-                            const isLocked = !unlockedLevels.includes(level.id);
-                            return (
-                                <div key={level.id} onClick={() => openLevel(level.id)} 
-                                    className={`p-6 rounded-3xl border-2 transition-all active:scale-95 ${isLocked ? 'locked border-slate-200 bg-slate-100' : 'bg-white border-white shadow-sm hover:border-indigo-400 cursor-pointer'}`}>
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <h3 className="font-bold text-lg text-slate-800">{level.title}</h3>
-                                            <p className="text-slate-500 text-sm">{level.description}</p>
-                                        </div>
-                                        <div className="text-2xl">{isLocked ? '🔒' : '📖'}</div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
 
                     <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Practice Mode</h2>
                     <div onClick={() => openLevel('random_mode')} 
-                        className="p-6 rounded-3xl border-2 bg-gradient-to-br from-indigo-600 to-purple-700 border-transparent text-white shadow-xl cursor-pointer hover:shadow-indigo-200 transition-all active:scale-95">
+                        className="p-6 rounded-3xl border-2 bg-gradient-to-br from-indigo-600 to-purple-700 border-transparent text-white shadow-xl cursor-pointer hover:shadow-indigo-200 transition-all active:scale-95 mb-10">
                         <div className="flex justify-between items-center">
                             <div>
                                 <h3 className="font-black text-xl tracking-tight">∞ Random Challenge</h3>
@@ -166,25 +147,48 @@
                             <div className="text-3xl">🎲</div>
                         </div>
                     </div>
+
+                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Curriculum</h2>
+                    <div className="space-y-4">
+                        {CONTENT_MODULES.map(level => {
+                            const stars = levelStars[level.id] || 0;
+                            return (
+                                <div key={level.id} onClick={() => openLevel(level.id)} 
+                                    className="p-6 rounded-3xl border-2 bg-white border-white shadow-sm hover:border-indigo-400 cursor-pointer transition-all active:scale-95">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h3 className="font-bold text-lg text-slate-800">{level.title}</h3>
+                                            <p className="text-slate-500 text-sm">{level.description}</p>
+                                        </div>
+                                        <div className="text-lg tracking-tight shrink-0 ml-3" title="Stars reflect your most recent attempt">
+                                            {[1, 2, 3].map(n => (
+                                                <span key={n} className={n <= stars ? 'text-amber-400' : 'text-slate-200'}>★</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             );
 
             // GUIDE VIEW
             if (view === 'guide') return (
                 <div className="max-w-xl mx-auto p-6 min-h-screen bg-white">
-                    <button onClick={() => setView('dashboard')} className="mb-8 text-indigo-600 font-bold flex items-center">← Home</button>
-                    <h1 className="text-3xl font-black mb-4">{activeLevel.title}</h1>
-                    <p className="text-slate-600 text-lg mb-8 leading-relaxed">{activeLevel.guide.intro}</p>
-                    <div className="space-y-4 mb-10">
+                    <button onClick={() => setView('dashboard')} className="mb-4 text-indigo-600 font-bold flex items-center">← Home</button>
+                    <h1 className="text-2xl font-black mb-2">{activeLevel.title}</h1>
+                    <p className="text-slate-600 text-sm mb-4 leading-snug">{activeLevel.guide.intro}</p>
+                    <div className="space-y-2 mb-5">
                         {activeLevel.guide.rules.map((rule, i) => (
-                            <div key={i} className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                                <h4 className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-2">{rule.title}</h4>
-                                <p className="text-slate-800 font-semibold">{rule.content}</p>
+                            <div key={i} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                <h4 className="text-xs font-black text-indigo-500 uppercase tracking-widest mb-1">{rule.title}</h4>
+                                <p className="text-slate-800 font-semibold text-sm leading-snug">{rule.content}</p>
                             </div>
                         ))}
                     </div>
-                    <button onClick={() => {setScore(0); setCurrentIdx(0); setWrongAnswers([]); setView('quiz');}} 
-                        className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl shadow-xl hover:bg-indigo-700 transition-all">
+                    <button onClick={() => {setScore(0); setCurrentIdx(0); setWrongAnswers([]); setShowFeedback(false); setSelectedOpt(null); setView('quiz');}} 
+                        className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-xl hover:bg-indigo-700 transition-all">
                         Start Quiz
                     </button>
                 </div>
